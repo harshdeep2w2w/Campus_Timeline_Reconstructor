@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Forensic Reports & Data Export{% endblock %}
+{% block page_title %}Forensic Reports &amp; Exports{% endblock %}
+{% block page_subtitle %}Compile executive incident briefs, machine-readable JSON feeds, and CSV audit logs{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Export Configuration Form -->
+    <div class="col-12 col-lg-8">
+        <div class="soc-card h-100">
+            <div class="soc-card-header">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-file-earmark-arrow-down text-cyan"></i> Export Parameters &amp; Scope
+                </h3>
+                <span class="badge soc-badge-cyan">Forensic Engine</span>
+            </div>
+            <div class="soc-card-body">
+                <form id="reportExportForm">
+                    <div class="row g-3 mb-3">
+                        <!-- Dataset Selector -->
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label">Source Dataset</label>
+                            <select class="form-select soc-select" id="reportDatasetSelect" required>
+                                <option value="" disabled selected>Loading datasets...</option>
+                            </select>
+                        </div>
+
+                        <!-- Investigation Selector (Optional) -->
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label">Specific Case Docket (Optional)</label>
+                            <select class="form-select soc-select" id="reportInvestigationSelect">
+                                <option value="">All Dataset Telemetry (Whole Log)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <!-- Time Start -->
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label">Scope Start Time</label>
+                            <input type="datetime-local" class="form-control soc-input" id="reportTimeStart" step="1">
+                        </div>
+                        <!-- Time End -->
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label">Scope End Time</label>
+                            <input type="datetime-local" class="form-control soc-input" id="reportTimeEnd" step="1">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <!-- Severity Filter -->
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label">Severity Level</label>
+                            <select class="form-select soc-select" id="reportSeverity">
+                                <option value="">All Severities</option>
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                                <option value="informational">Informational</option>
+                            </select>
+                        </div>
+                        <!-- Protocol Filter -->
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label">Protocol Filter</label>
+                            <select class="form-select soc-select" id="reportProtocol">
+                                <option value="">All Protocols</option>
+                                <option value="TCP">TCP</option>
+                                <option value="UDP">UDP</option>
+                                <option value="ICMP">ICMP</option>
+                                <option value="DNS">DNS</option>
+                                <option value="HTTP">HTTP</option>
+                                <option value="SSH">SSH</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Generation Loading Spinner -->
+                    <div id="reportLoadingSpinner" class="mb-3 text-center" style="display: none;">
+                        <div class="soc-spinner-cyan mb-2 mx-auto"></div>
+                        <div class="small text-cyan fw-semibold" id="reportStatusMessage">Compiling forensic dossier...</div>
+                    </div>
+
+                    <!-- Export Format Action Buttons -->
+                    <div class="d-flex flex-wrap align-items-center gap-3 pt-3 border-top border-secondary-subtle">
+                        <button type="button" class="btn soc-btn-primary px-3 py-2 flex-grow-1" id="btnExportPDF">
+                            <i class="bi bi-file-earmark-pdf-fill me-2"></i>Generate PDF Executive Dossier
+                        </button>
+                        <button type="button" class="btn soc-btn-outline-cyan px-3 py-2" id="btnExportCSV">
+                            <i class="bi bi-filetype-csv me-2"></i>Export CSV
+                        </button>
+                        <button type="button" class="btn soc-btn-outline-cyan px-3 py-2" id="btnExportJSON">
+                            <i class="bi bi-filetype-json me-2"></i>Export JSON
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side: Standard Format Descriptions & Audit History -->
+    <div class="col-12 col-lg-4">
+        <!-- PDF Briefing Specs -->
+        <div class="soc-card mb-4 border-cyan">
+            <div class="soc-card-header bg-cyan-subtle">
+                <h3 class="soc-card-title text-cyan">
+                    <i class="bi bi-shield-lock-fill"></i> Executive Incident Dossier (PDF)
+                </h3>
+            </div>
+            <div class="soc-card-body">
+                <p class="text-secondary small mb-2">
+                    Formal PDF report formatted for campus leadership, IT administration, and compliance auditors. Includes:
+                </p>
+                <ul class="text-secondary small ps-3 mb-0">
+                    <li>Chronological Attack Timeline Breakdown</li>
+                    <li>Compromised Subnets &amp; Endpoints Roster</li>
+                    <li>Heuristic Detection Rule Alerts &amp; Evidence</li>
+                    <li>Investigator Findings &amp; Mitigation Guidance</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Recent Export Activity Log -->
+        <div class="soc-card">
+            <div class="soc-card-header">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-clock-history text-cyan"></i> Export Activity Audit
+                </h3>
+            </div>
+            <div class="soc-card-body p-2" id="recentExportsList">
+                <div class="p-2 mb-2 rounded soc-card border-secondary text-start" style="background: rgba(15, 23, 42, 0.4);">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="badge bg-danger-subtle text-danger border border-danger">PDF Report</span>
+                        <span class="fs-xs text-muted">Recent Session</span>
+                    </div>
+                    <div class="small fw-semibold text-light text-truncate">Campus-Attack-Incident-Brief.pdf</div>
+                    <div class="fs-xs text-secondary">Forensic evidence summary generated</div>
+                </div>
+                <div class="p-2 rounded soc-card border-secondary text-start" style="background: rgba(15, 23, 42, 0.4);">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="badge bg-success-subtle text-success border border-success">CSV Telemetry</span>
+                        <span class="fs-xs text-muted">Recent Session</span>
+                    </div>
+                    <div class="small fw-semibold text-light text-truncate">Timeline_Events_Export.csv</div>
+                    <div class="fs-xs text-secondary">Exported raw filter records</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/reports.js"></script>
+{% endblock %}

@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}SOC Detection Engine Settings{% endblock %}
+{% block page_title %}Detection Engine Settings{% endblock %}
+{% block page_subtitle %}Tune automated anomaly rules, sliding time correlation windows, and threat heuristics{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Detection Engine Parameters Form -->
+    <div class="col-12 col-lg-8">
+        <div class="soc-card h-100">
+            <div class="soc-card-header">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-sliders text-cyan"></i> Heuristic Detection Thresholds
+                </h3>
+                <span class="badge soc-badge-cyan">Rule Configuration</span>
+            </div>
+            <div class="soc-card-body">
+                <form id="settingsForm">
+                    <!-- Repeated Connections Threshold -->
+                    <div class="mb-4">
+                        <label for="threshRepeatedConn" class="form-label d-flex justify-content-between">
+                            <span>Repeated Connection Threshold</span>
+                            <span class="text-cyan font-monospace fw-bold" id="threshRepeatedConnVal">15</span>
+                        </label>
+                        <input type="number" class="form-control soc-input" id="threshRepeatedConn" name="repeated_connection_threshold" min="1" max="1000" value="15" required>
+                        <div class="form-text text-secondary small">
+                            Number of connection attempts to the same destination within time window before triggering a persistent connection beaconing alert.
+                        </div>
+                    </div>
+
+                    <!-- Port Scan Threshold -->
+                    <div class="mb-4">
+                        <label for="threshPortScan" class="form-label d-flex justify-content-between">
+                            <span>Port Scan Unique Ports Threshold</span>
+                            <span class="text-cyan font-monospace fw-bold" id="threshPortScanVal">10</span>
+                        </label>
+                        <input type="number" class="form-control soc-input" id="threshPortScan" name="port_scan_threshold" min="1" max="500" value="10" required>
+                        <div class="form-text text-secondary small">
+                            Number of unique destination ports targeted by a single source host within time window before raising a reconnaissance scan alarm.
+                        </div>
+                    </div>
+
+                    <!-- Traffic Burst Threshold -->
+                    <div class="mb-4">
+                        <label for="threshTrafficBurst" class="form-label d-flex justify-content-between">
+                            <span>Traffic Burst Threshold (Bytes / Flow Volume)</span>
+                            <span class="text-cyan font-monospace fw-bold" id="threshTrafficBurstVal">500000</span>
+                        </label>
+                        <input type="number" class="form-control soc-input" id="threshTrafficBurst" name="traffic_burst_threshold" min="1000" max="100000000" step="1000" value="500000" required>
+                        <div class="form-text text-secondary small">
+                            Byte volume threshold indicating abnormal volumetric spike or potential data exfiltration burst.
+                        </div>
+                    </div>
+
+                    <!-- Sliding Correlation Window -->
+                    <div class="mb-4">
+                        <label for="threshTimeWindow" class="form-label d-flex justify-content-between">
+                            <span>Sliding Correlation Time Window (Seconds)</span>
+                            <span class="text-cyan font-monospace fw-bold" id="threshTimeWindowVal">60</span>
+                        </label>
+                        <input type="number" class="form-control soc-input" id="threshTimeWindow" name="time_window" min="5" max="3600" value="60" required>
+                        <div class="form-text text-secondary small">
+                            Temporal sliding window for correlating multi-stage attacker actions into sequential attack stages.
+                        </div>
+                    </div>
+
+                    <!-- DNS Query Threshold -->
+                    <div class="mb-4">
+                        <label for="threshDnsQuery" class="form-label d-flex justify-content-between">
+                            <span>DNS Query Anomaly Threshold</span>
+                            <span class="text-cyan font-monospace fw-bold" id="threshDnsQueryVal">25</span>
+                        </label>
+                        <input type="number" class="form-control soc-input" id="threshDnsQuery" name="dns_query_threshold" min="1" max="1000" value="25" required>
+                        <div class="form-text text-secondary small">
+                            High-frequency DNS queries indicative of DNS tunneling, DGA domains, or covert channel beaconing.
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between pt-3 border-top border-secondary-subtle">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="resetDefaultsBtn">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Defaults
+                        </button>
+                        <button type="submit" class="btn soc-btn-primary px-4 py-2" id="saveSettingsBtn">
+                            <i class="bi bi-check2-circle me-1"></i>Save Detection Thresholds
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- About & System Specifications -->
+    <div class="col-12 col-lg-4">
+        <!-- Platform Info Card -->
+        <div class="soc-card mb-4 border-cyan">
+            <div class="soc-card-header bg-cyan-subtle">
+                <h3 class="soc-card-title text-cyan">
+                    <i class="bi bi-shield-check"></i> System Dossier
+                </h3>
+            </div>
+            <div class="soc-card-body">
+                <div class="mb-3">
+                    <div class="fw-bold text-light">Campus Network Attack – Timeline Reconstructor</div>
+                    <div class="text-secondary small">Enterprise SOC Forensic &amp; Incident Reconstruction Platform</div>
+                </div>
+                <div class="mb-2 d-flex justify-content-between small">
+                    <span class="text-secondary">Engine Version:</span>
+                    <span class="text-light font-monospace">v2.4.0-SOC</span>
+                </div>
+                <div class="mb-2 d-flex justify-content-between small">
+                    <span class="text-secondary">UI Framework:</span>
+                    <span class="text-light">Bootstrap 5.3 + Cytoscape + ChartJS</span>
+                </div>
+                <div class="mb-2 d-flex justify-content-between small">
+                    <span class="text-secondary">Correlator:</span>
+                    <span class="text-cyan">Temporal Heuristic Graph Engine</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-secondary">Deployment Mode:</span>
+                    <span class="badge bg-success-subtle text-success">Autonomous / On-Prem</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detection Architecture Card -->
+        <div class="soc-card">
+            <div class="soc-card-header">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-cpu text-cyan"></i> Correlation Architecture
+                </h3>
+            </div>
+            <div class="soc-card-body">
+                <div class="small text-secondary mb-3">
+                    CTR processes raw campus network flow records through a 3-tier analysis pipeline:
+                </div>
+                <ol class="small text-secondary ps-3 mb-0">
+                    <li class="mb-2"><strong class="text-light">Normalization:</strong> Ingests CSV, JSON, or Zeek conn.log files into standard schema.</li>
+                    <li class="mb-2"><strong class="text-light">Heuristic Detection:</strong> Evaluates threshold rules against sliding time windows.</li>
+                    <li><strong class="text-light">Topology Mapping:</strong> Synthesizes interactive Cytoscape node-link graphs and multi-stage attack timelines.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('settingsForm');
+    const resetBtn = document.getElementById('resetDefaultsBtn');
+    const saveBtn = document.getElementById('saveSettingsBtn');
+
+    const inputs = {
+        repeated_connection_threshold: document.getElementById('threshRepeatedConn'),
+        port_scan_threshold: document.getElementById('threshPortScan'),
+        traffic_burst_threshold: document.getElementById('threshTrafficBurst'),
+        time_window: document.getElementById('threshTimeWindow'),
+        dns_query_threshold: document.getElementById('threshDnsQuery')
+    };
+
+    const valBadges = {
+        repeated_connection_threshold: document.getElementById('threshRepeatedConnVal'),
+        port_scan_threshold: document.getElementById('threshPortScanVal'),
+        traffic_burst_threshold: document.getElementById('threshTrafficBurstVal'),
+        time_window: document.getElementById('threshTimeWindowVal'),
+        dns_query_threshold: document.getElementById('threshDnsQueryVal')
+    };
+
+    // Update value indicators on input
+    Object.keys(inputs).forEach(key => {
+        const input = inputs[key];
+        const badge = valBadges[key];
+        if (input && badge) {
+            input.addEventListener('input', () => {
+                badge.textContent = input.value;
+            });
+        }
+    });
+
+    // Default configuration values
+    const defaults = {
+        repeated_connection_threshold: 15,
+        port_scan_threshold: 10,
+        traffic_burst_threshold: 500000,
+        time_window: 60,
+        dns_query_threshold: 25
+    };
+
+    /**
+     * Fetch settings from GET /api/settings
+     */
+    async function loadSettings() {
+        try {
+            const data = await CTR.apiCall('/api/settings');
+            const settings = data.settings || data || {};
+
+            Object.keys(inputs).forEach(key => {
+                if (settings[key] !== undefined && inputs[key]) {
+                    inputs[key].value = settings[key];
+                    if (valBadges[key]) valBadges[key].textContent = settings[key];
+                }
+            });
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+            CTR.showToast('Failed to load detection settings: ' + error.message, 'warning');
+        }
+    }
+
+    // Save Settings
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+            const payload = {
+                repeated_connection_threshold: parseInt(inputs.repeated_connection_threshold.value, 10),
+                port_scan_threshold: parseInt(inputs.port_scan_threshold.value, 10),
+                traffic_burst_threshold: parseInt(inputs.traffic_burst_threshold.value, 10),
+                time_window: parseInt(inputs.time_window.value, 10),
+                dns_query_threshold: parseInt(inputs.dns_query_threshold.value, 10)
+            };
+
+            try {
+                await CTR.apiCall('/api/settings', {
+                    method: 'PUT',
+                    body: payload
+                });
+                CTR.showToast('Detection thresholds updated and applied to heuristic engine!', 'success');
+            } catch (error) {
+                CTR.showToast('Failed to save settings: ' + error.message, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Save Detection Thresholds';
+            }
+        });
+    }
+
+    // Reset Defaults
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (!confirm('Reset all detection parameters to factory defaults?')) return;
+            Object.keys(defaults).forEach(key => {
+                if (inputs[key]) {
+                    inputs[key].value = defaults[key];
+                    if (valBadges[key]) valBadges[key].textContent = defaults[key];
+                }
+            });
+            CTR.showToast('Thresholds reset to factory default values', 'info');
+        });
+    }
+
+    loadSettings();
+});
+</script>
+{% endblock %}

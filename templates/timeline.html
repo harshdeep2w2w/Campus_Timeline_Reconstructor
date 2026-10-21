@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}Attack Timeline Reconstruction{% endblock %}
+{% block page_title %}Network Attack Timeline{% endblock %}
+{% block page_subtitle %}Chronological telemetry sequencing and multi-stage attack stage reconstruction{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <!-- Filter Card -->
+        <div class="soc-card mb-4">
+            <div class="soc-card-header d-flex align-items-center justify-content-between">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-funnel text-cyan"></i> Telemetry Filters &amp; Time Window
+                </h3>
+                <span class="badge soc-badge-cyan" id="eventMatchBadge">Loading...</span>
+            </div>
+            <div class="soc-card-body">
+                <form id="timelineFilterForm">
+                    <div class="row g-3">
+                        <!-- Time Start -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label">Time Start</label>
+                            <input type="datetime-local" class="form-control soc-input" id="filterTimeStart" step="1">
+                        </div>
+                        <!-- Time End -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label">Time End</label>
+                            <input type="datetime-local" class="form-control soc-input" id="filterTimeEnd" step="1">
+                        </div>
+                        <!-- Source IP -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label">Source IP</label>
+                            <input type="text" class="form-control soc-input font-monospace" id="filterSrcIp" placeholder="e.g., 192.168.1.105">
+                        </div>
+                        <!-- Destination IP -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label">Destination IP</label>
+                            <input type="text" class="form-control soc-input font-monospace" id="filterDstIp" placeholder="e.g., 10.0.0.5">
+                        </div>
+
+                        <!-- Protocol -->
+                        <div class="col-12 col-sm-4 col-md-3">
+                            <label class="form-label">Protocol</label>
+                            <select class="form-select soc-select" id="filterProtocol">
+                                <option value="">All Protocols</option>
+                                <option value="TCP">TCP</option>
+                                <option value="UDP">UDP</option>
+                                <option value="ICMP">ICMP</option>
+                                <option value="DNS">DNS</option>
+                                <option value="HTTP">HTTP</option>
+                                <option value="HTTPS">HTTPS</option>
+                                <option value="SSH">SSH</option>
+                            </select>
+                        </div>
+                        <!-- Severity -->
+                        <div class="col-12 col-sm-4 col-md-3">
+                            <label class="form-label">Severity</label>
+                            <select class="form-select soc-select" id="filterSeverity">
+                                <option value="">All Severities</option>
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                                <option value="informational">Informational</option>
+                            </select>
+                        </div>
+                        <!-- Category / Attack Stage -->
+                        <div class="col-12 col-sm-4 col-md-3">
+                            <label class="form-label">Attack Category / Phase</label>
+                            <select class="form-select soc-select" id="filterCategory">
+                                <option value="">All Categories</option>
+                                <option value="reconnaissance">Reconnaissance / Scanning</option>
+                                <option value="initial_access">Initial Access / Brute Force</option>
+                                <option value="lateral_movement">Lateral Movement</option>
+                                <option value="c2">Command &amp; Control (C2)</option>
+                                <option value="exfiltration">Data Exfiltration</option>
+                                <option value="dos">Denial of Service (DoS)</option>
+                                <option value="normal">Normal Traffic</option>
+                            </select>
+                        </div>
+                        <!-- Action Buttons -->
+                        <div class="col-12 col-md-3 d-flex align-items-end gap-2">
+                            <button type="submit" class="btn soc-btn-primary flex-fill" id="applyFiltersBtn">
+                                <i class="bi bi-search me-1"></i>Apply Filters
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="resetFiltersBtn" title="Reset Filters">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Timeline Events Display Container -->
+        <div class="soc-card p-3 p-lg-4 position-relative" id="timelineContainerWrapper">
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom border-secondary-subtle pb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-cyan fs-5"></i>
+                    <span class="fw-bold text-light text-uppercase">Reconstructed Chronology</span>
+                </div>
+                <div class="small text-secondary" id="paginationSummary">
+                    Showing 0 of 0 events
+                </div>
+            </div>
+
+            <!-- Empty State for Timeline -->
+            <div id="timelineEmptyState" class="soc-empty-state" style="display: none;">
+                <div class="empty-icon-circle">
+                    <i class="bi bi-calendar-x"></i>
+                </div>
+                <h5 class="text-light">No Events Match Current Query</h5>
+                <p class="text-secondary small">Try adjusting your time range, protocol filters, or IP address search terms.</p>
+                <button class="btn btn-sm soc-btn-outline-cyan mt-2" id="clearFiltersEmptyBtn">Reset All Filters</button>
+            </div>
+
+            <!-- Vertical Timeline Track -->
+            <div class="timeline-container" id="timelineStream">
+                <!-- Dynamically generated timeline items -->
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-3 mt-3 border-top border-secondary-subtle">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label mb-0 small text-secondary">Per Page:</label>
+                    <select class="form-select form-select-sm soc-select" id="perPageSelect" style="width: 80px;">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <nav aria-label="Timeline navigation">
+                    <ul class="pagination pagination-sm mb-0" id="timelinePagination">
+                        <!-- Dynamic pagination buttons -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Event Detail & Correlation Modal -->
+<div class="modal fade" id="eventDetailModal" tabindex="-1" aria-labelledby="eventDetailModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content soc-modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="eventDetailModalLabel">
+                    <i class="bi bi-shield-shaded text-cyan"></i>
+                    <span>Telemetry Event Details</span>
+                    <span id="modalEventIdBadge" class="badge bg-dark border border-secondary text-cyan">#0</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="eventDetailModalCloseX"></button>
+            </div>
+            <div class="modal-body" id="eventDetailModalBody">
+                <!-- Injected via timeline.js -->
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" id="eventDetailModalCloseBtn">Close</button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm soc-btn-outline-cyan" id="modalAddInvestigationBtn">
+                        <i class="bi bi-folder-plus me-1"></i>Add to Investigation
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add to Investigation Quick Modal -->
+<div class="modal fade" id="addToInvModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content soc-modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-plus text-cyan me-2"></i>Add Event to Investigation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="addToInvModalCloseX"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Select Active Investigation</label>
+                    <select class="form-select soc-select" id="targetInvestigationSelect">
+                        <option value="" disabled selected>Loading investigations...</option>
+                    </select>
+                </div>
+                <div class="text-secondary small">
+                    Attaching this event will link its telemetry, timeline point, and involved endpoints into the case file.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" id="addToInvModalCloseBtn">Cancel</button>
+                <button type="button" class="btn btn-sm soc-btn-primary" id="confirmAddToInvBtn">Confirm Link</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/timeline.js"></script>
+{% endblock %}

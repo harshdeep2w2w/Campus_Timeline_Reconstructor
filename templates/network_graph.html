@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Network Topology & Attack Graph{% endblock %}
+{% block page_title %}Interactive Network Attack Graph{% endblock %}
+{% block page_subtitle %}Graph topology visualization of campus host interactions, pivot points, and infected nodes{% endblock %}
+
+{% block content %}
+<div class="network-graph-viewport">
+    <!-- Cytoscape Canvas Container -->
+    <div id="cyNetwork"></div>
+
+    <!-- Floating Top-Right Control Toolbar -->
+    <div class="graph-overlay-toolbar">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="fs-xs fw-bold text-uppercase text-cyan"><i class="bi bi-sliders me-1"></i> Graph Controls</span>
+            <span class="badge bg-dark border border-secondary" id="graphNodeEdgeCount">0 nodes, 0 edges</span>
+        </div>
+
+        <!-- IP Search Box -->
+        <div class="input-group input-group-sm mb-2">
+            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control soc-input" id="graphSearchInput" placeholder="Locate IP / Hostname...">
+            <button class="btn soc-btn-outline-cyan" type="button" id="graphSearchBtn">Find</button>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="mb-2">
+            <select class="form-select form-select-sm soc-select" id="graphCategoryFilter">
+                <option value="">All Categories / Stages</option>
+                <option value="reconnaissance">Reconnaissance</option>
+                <option value="initial_access">Initial Access</option>
+                <option value="lateral_movement">Lateral Movement</option>
+                <option value="c2">Command &amp; Control</option>
+                <option value="exfiltration">Data Exfiltration</option>
+            </select>
+        </div>
+
+        <!-- Layout Selector & Zoom Controls -->
+        <div class="d-flex align-items-center justify-content-between gap-1 pt-1 border-top border-secondary-subtle">
+            <select class="form-select form-select-sm soc-select" id="graphLayoutSelect" style="max-width: 130px;">
+                <option value="cose" selected>Force (cose)</option>
+                <option value="circle">Circle</option>
+                <option value="grid">Grid</option>
+                <option value="breadthfirst">Hierarchical</option>
+                <option value="concentric">Concentric</option>
+            </select>
+
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-dark border-secondary text-light" id="zoomInBtn" title="Zoom In"><i class="bi bi-zoom-in"></i></button>
+                <button type="button" class="btn btn-dark border-secondary text-light" id="zoomOutBtn" title="Zoom Out"><i class="bi bi-zoom-out"></i></button>
+                <button type="button" class="btn btn-dark border-secondary text-cyan" id="fitGraphBtn" title="Fit to Screen"><i class="bi bi-arrows-fullscreen"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Bottom-Right Legend Overlay -->
+    <div class="graph-legend-box" id="graphLegend">
+        <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom border-secondary-subtle">
+            <span class="fw-bold text-uppercase fs-xs text-light">Legend</span>
+            <button type="button" class="btn-close btn-close-white fs-xs" id="legendCloseBtn" aria-label="Toggle Legend"></button>
+        </div>
+        <div class="d-flex flex-column gap-1">
+            <div class="d-flex align-items-center">
+                <span class="legend-color-dot" style="background-color: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan);"></span>
+                <span class="text-secondary">Standard Campus Node</span>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="legend-color-dot" style="background-color: var(--sev-critical); box-shadow: 0 0 6px var(--sev-critical);"></span>
+                <span class="text-danger fw-semibold">Suspicious / Infected Node</span>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="legend-color-dot" style="background-color: var(--accent-blue);"></span>
+                <span class="text-info">Infrastructure / Server</span>
+            </div>
+            <div class="text-muted fs-xs mt-1 border-top border-secondary-subtle pt-1">
+                Edge thickness = Traffic Volume
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide-out Host Details Drawer -->
+    <div class="soc-slide-drawer" id="hostDetailDrawer">
+        <div class="drawer-header">
+            <div>
+                <span class="fs-xs text-muted text-uppercase fw-bold">Host Telemetry Dossier</span>
+                <h5 class="mb-0 text-cyan font-monospace" id="drawerHostIp">192.168.1.100</h5>
+            </div>
+            <button type="button" class="btn-close btn-close-white" id="closeDrawerBtn"></button>
+        </div>
+        <div class="drawer-body" id="drawerBody">
+            <div class="text-center py-4 text-secondary">Select any node on the graph to view host details</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/network_graph.js"></script>
+{% endblock %}

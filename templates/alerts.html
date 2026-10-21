@@ -1,0 +1,512 @@
+{% extends 'base.html' %}
+
+{% block title %}Security Alerts Triage{% endblock %}
+{% block page_title %}Active Security Alerts{% endblock %}
+{% block page_subtitle %}Automated detection rules, threat triage, and incident escalation queue{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <!-- Filter Card -->
+        <div class="soc-card mb-4">
+            <div class="soc-card-header d-flex align-items-center justify-content-between">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-funnel text-cyan"></i> Alert Triage Filters
+                </h3>
+                <span class="badge soc-badge-cyan" id="alertsCountBadge">Loading alerts...</span>
+            </div>
+            <div class="soc-card-body">
+                <form id="alertsFilterForm" class="row g-3">
+                    <!-- Severity Filter -->
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label class="form-label">Severity Level</label>
+                        <select class="form-select soc-select" id="alertFilterSeverity">
+                            <option value="">All Severities</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                            <option value="informational">Informational</option>
+                        </select>
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label class="form-label">Triage Status</label>
+                        <select class="form-select soc-select" id="alertFilterStatus">
+                            <option value="">All Statuses</option>
+                            <option value="open" selected>Open / Unresolved</option>
+                            <option value="acknowledged">Acknowledged</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="false_positive">False Positive</option>
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="col-12 col-md-4 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn soc-btn-primary flex-fill">
+                            <i class="bi bi-filter me-1"></i>Filter Alerts
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="resetAlertsFilterBtn" title="Reset Filters">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Alerts Table Container -->
+        <div class="soc-card" id="alertsContainerWrapper">
+            <div class="soc-card-header d-flex align-items-center justify-content-between">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-exclamation-triangle-fill text-warning"></i> Detection Queue
+                </h3>
+                <div class="small text-secondary" id="alertsPaginationInfo">
+                    Showing 0 of 0 alerts
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="alertsEmptyState" class="soc-empty-state" style="display: none;">
+                <div class="empty-icon-circle">
+                    <i class="bi bi-shield-check text-success"></i>
+                </div>
+                <h5 class="text-light">No Active Alerts In Current Filter</h5>
+                <p class="text-secondary small">No automated threat detection alerts match your criteria for the active dataset.</p>
+            </div>
+
+            <!-- Alerts Table -->
+            <div class="soc-table-wrapper border-0">
+                <table class="soc-table" id="alertsTable">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Rule / Alert Title</th>
+                            <th>Trigger Reason</th>
+                            <th>Endpoints (Src &rarr; Dst)</th>
+                            <th>Detected At</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsTableBody">
+                        <tr><td colspan="7" class="text-center py-4 text-secondary">Loading security alerts...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div class="soc-card-footer d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="small text-secondary" id="alertsCountSummary">Total 0 entries</div>
+                <nav aria-label="Alerts pagination">
+                    <ul class="pagination pagination-sm mb-0" id="alertsPaginationList"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Alert Detail Modal -->
+<div class="modal fade" id="alertDetailModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content soc-modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2">
+                    <i class="bi bi-exclamation-diamond text-danger"></i>
+                    <span>Alert Details</span>
+                    <span id="modalAlertIdBadge" class="badge bg-dark border border-secondary text-light">#0</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="alertModalCloseX"></button>
+            </div>
+            <div class="modal-body" id="alertDetailModalBody">
+                <!-- Dynamically populated -->
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-warning" id="modalBtnAcknowledge">Acknowledge</button>
+                    <button type="button" class="btn btn-sm btn-outline-success" id="modalBtnResolve">Resolve</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="modalBtnFalsePositive">False Positive</button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm soc-btn-primary" id="modalBtnCreateInvestigation">
+                        <i class="bi bi-folder-plus me-1"></i>Create Investigation From Alert
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal" id="alertModalCloseBtn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let currentAlertsPage = 1;
+    let currentAlertId = null;
+
+    const tableBody = document.getElementById('alertsTableBody');
+    const emptyState = document.getElementById('alertsEmptyState');
+    const countBadge = document.getElementById('alertsCountBadge');
+    const paginationList = document.getElementById('alertsPaginationList');
+    const paginationInfo = document.getElementById('alertsPaginationInfo');
+    const countSummary = document.getElementById('alertsCountSummary');
+    const filterForm = document.getElementById('alertsFilterForm');
+    const wrapper = document.getElementById('alertsContainerWrapper');
+
+    const detailModalEl = document.getElementById('alertDetailModal');
+    let bsAlertModal = null;
+    function getAlertModal() {
+        if (!bsAlertModal && detailModalEl && window.bootstrap) {
+            bsAlertModal = bootstrap.Modal.getOrCreateInstance(detailModalEl);
+        }
+        return bsAlertModal;
+    }
+
+    // Direct close handler function that ALWAYS works regardless of Bootstrap state
+    function forceCloseAlertModal() {
+        const modalInstance = getAlertModal();
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        if (detailModalEl) {
+            detailModalEl.classList.remove('show');
+            detailModalEl.style.display = 'none';
+            detailModalEl.setAttribute('aria-hidden', 'true');
+            detailModalEl.removeAttribute('aria-modal');
+        }
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    }
+
+    // Attach direct click events to both Close buttons
+    const closeBtnX = document.getElementById('alertModalCloseX');
+    const closeBtnFooter = document.getElementById('alertModalCloseBtn');
+    if (closeBtnX) closeBtnX.addEventListener('click', forceCloseAlertModal);
+    if (closeBtnFooter) closeBtnFooter.addEventListener('click', forceCloseAlertModal);
+
+    // Close when clicking outside the modal dialog
+    if (detailModalEl) {
+        detailModalEl.addEventListener('click', function(e) {
+            if (e.target === detailModalEl) {
+                forceCloseAlertModal();
+            }
+        });
+
+        // Ensure modal backdrop is fully cleaned up when hidden
+        detailModalEl.addEventListener('hidden.bs.modal', function () {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        });
+    }
+
+    // Also close on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && detailModalEl && detailModalEl.classList.contains('show')) {
+            forceCloseAlertModal();
+        }
+    });
+
+    /**
+     * Load Alerts from /api/alerts
+     */
+    async function loadAlerts(page = 1) {
+        currentAlertsPage = page;
+        const datasetId = CTR.getCurrentDatasetId();
+        if (!datasetId) {
+            tableBody.innerHTML = '';
+            emptyState.style.display = 'block';
+            countBadge.textContent = 'No dataset selected';
+            return;
+        }
+
+        CTR.showLoading(wrapper, 'Fetching alert queue...');
+        emptyState.style.display = 'none';
+
+        try {
+            const severity = document.getElementById('alertFilterSeverity').value;
+            const status = document.getElementById('alertFilterStatus').value;
+
+            let url = `/api/alerts?dataset_id=${datasetId}&page=${page}&per_page=50`;
+            if (severity) url += `&severity=${encodeURIComponent(severity)}`;
+            if (status) url += `&status=${encodeURIComponent(status)}`;
+
+            const data = await CTR.apiCall(url);
+            const alerts = data.alerts || [];
+            const total = data.total !== undefined ? data.total : alerts.length;
+            const pages = data.pages || Math.ceil(total / 50) || 1;
+
+            countBadge.textContent = `${total.toLocaleString()} Alerts`;
+            countSummary.textContent = `Total ${total.toLocaleString()} detections`;
+            paginationInfo.textContent = `Showing ${alerts.length > 0 ? (page - 1) * 50 + 1 : 0} - ${Math.min(page * 50, total)} of ${total}`;
+
+            if (alerts.length === 0) {
+                tableBody.innerHTML = '';
+                emptyState.style.display = 'block';
+                paginationList.innerHTML = '';
+            } else {
+                emptyState.style.display = 'none';
+                renderAlertsTable(alerts);
+                renderAlertsPagination(total, page, pages);
+            }
+        } catch (error) {
+            console.error('Failed to load alerts:', error);
+            tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Failed to load alerts: ${error.message}</td></tr>`;
+        } finally {
+            CTR.hideLoading(wrapper);
+        }
+    }
+
+    /**
+     * Render Alert Rows
+     */
+    function renderAlertsTable(alerts) {
+        tableBody.innerHTML = alerts.map(a => {
+            const status = a.status || 'open';
+            return `
+                <tr>
+                    <td>${CTR.severityBadge(a.severity)}</td>
+                    <td class="fw-semibold text-light">${a.rule_name || 'Suspicious Traffic Pattern'}</td>
+                    <td class="small text-secondary text-truncate" style="max-width: 280px;" title="${a.reason || ''}">${a.reason || '--'}</td>
+                    <td class="font-monospace fs-xs">
+                        <span class="text-cyan">${a.src_ip || 'Any'}</span>
+                        <span class="text-muted mx-1">&rarr;</span>
+                        <span class="text-warning">${a.dst_ip || 'Any'}</span>
+                    </td>
+                    <td class="font-monospace fs-xs text-muted">${CTR.formatTimestamp(a.timestamp)}</td>
+                    <td>${CTR.statusBadge(status)}</td>
+                    <td class="text-end">
+                        <button class="btn btn-xs soc-btn-outline-cyan me-1" onclick="window.CTR_OpenAlertDetail(${a.id})">
+                            <i class="bi bi-eye me-1"></i>View
+                        </button>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-xs btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                Status
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end soc-dropdown">
+                                <li><a class="dropdown-item" href="javascript:void(0)" onclick="window.CTR_UpdateAlertStatus(${a.id}, 'acknowledged')">Acknowledge</a></li>
+                                <li><a class="dropdown-item text-success" href="javascript:void(0)" onclick="window.CTR_UpdateAlertStatus(${a.id}, 'resolved')">Resolve</a></li>
+                                <li><a class="dropdown-item text-secondary" href="javascript:void(0)" onclick="window.CTR_UpdateAlertStatus(${a.id}, 'false_positive')">False Positive</a></li>
+                                <li><hr class="dropdown-divider border-secondary"></li>
+                                <li><a class="dropdown-item text-info" href="javascript:void(0)" onclick="window.CTR_UpdateAlertStatus(${a.id}, 'open')">Re-Open</a></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Render Pagination
+     */
+    function renderAlertsPagination(total, page, totalPages) {
+        if (totalPages <= 1) {
+            paginationList.innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+            <button class="page-link" onclick="window.CTR_AlertGoToPage(${page - 1})">&laquo;</button>
+        </li>`;
+
+        for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) {
+            html += `<li class="page-item ${p === page ? 'active' : ''}">
+                <button class="page-link" onclick="window.CTR_AlertGoToPage(${p})">${p}</button>
+            </li>`;
+        }
+
+        html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+            <button class="page-link" onclick="window.CTR_AlertGoToPage(${page + 1})">&raquo;</button>
+        </li>`;
+        paginationList.innerHTML = html;
+    }
+
+    window.CTR_AlertGoToPage = function(p) {
+        loadAlerts(p);
+    };
+
+    /**
+     * Update Alert Status via PATCH /api/alerts/<id>
+     */
+    window.CTR_UpdateAlertStatus = async function(alertId, newStatus) {
+        try {
+            await CTR.apiCall(`/api/alerts/${alertId}`, {
+                method: 'PATCH',
+                body: { status: newStatus }
+            });
+            CTR.showToast(`Alert #${alertId} updated to ${newStatus}`, 'success');
+            loadAlerts(currentAlertsPage);
+            CTR.refreshAlertNotifications();
+        } catch (error) {
+            CTR.showToast('Failed to update alert: ' + error.message, 'error');
+        }
+    };
+
+    /**
+     * Open Alert Detail Modal
+     */
+    window.CTR_OpenAlertDetail = async function(alertId) {
+        currentAlertId = alertId;
+        const bodyEl = document.getElementById('alertDetailModalBody');
+        document.getElementById('modalAlertIdBadge').textContent = `#${alertId}`;
+        bodyEl.innerHTML = '<div class="text-center py-5"><div class="soc-spinner-cyan mb-2"></div><div class="text-cyan small">Fetching alert evidence &amp; associations...</div></div>';
+        const modalInstance = getAlertModal();
+        if (modalInstance) {
+            modalInstance.show();
+        } else if (detailModalEl) {
+            detailModalEl.classList.add('show');
+            detailModalEl.style.display = 'block';
+        }
+
+        try {
+            const data = await CTR.apiCall(`/api/alerts/${alertId}`);
+            const alert = data.alert || data;
+            const associatedEvents = data.associated_events || alert.associated_events || [];
+
+            let eventsHtml = '';
+            if (associatedEvents.length === 0) {
+                eventsHtml = '<div class="text-secondary small">No discrete event records linked directly to this alert trigger.</div>';
+            } else {
+                eventsHtml = `
+                    <div class="soc-table-wrapper border-secondary">
+                        <table class="soc-table">
+                            <thead>
+                                <tr>
+                                    <th>Event ID</th>
+                                    <th>Time</th>
+                                    <th>Protocol</th>
+                                    <th>Endpoints</th>
+                                    <th>Category</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${associatedEvents.map(e => `
+                                    <tr>
+                                        <td class="font-monospace text-cyan">#${e.id}</td>
+                                        <td class="font-monospace fs-xs">${CTR.formatTimestamp(e.timestamp)}</td>
+                                        <td><span class="badge-protocol">${(e.protocol||'TCP').toUpperCase()}</span></td>
+                                        <td class="font-monospace fs-xs">${e.src_ip} &rarr; ${e.dst_ip}</td>
+                                        <td><span class="badge bg-secondary">${e.event_category || 'traffic'}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            bodyEl.innerHTML = `
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-8">
+                        <h5 class="text-light fw-bold mb-1">${alert.rule_name || 'Heuristic Detection Alert'}</h5>
+                        <p class="text-secondary small mb-0">${alert.reason || 'Anomalous network telemetry triggered detection rule.'}</p>
+                    </div>
+                    <div class="col-sm-4 text-sm-end">
+                        <div class="mb-1">${CTR.severityBadge(alert.severity)}</div>
+                        <div>${CTR.statusBadge(alert.status || 'open')}</div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label">Source Host</label>
+                        <div class="font-monospace bg-dark p-2 rounded border border-secondary">${CTR.formatIP(alert.src_ip, true)}</div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Destination Host</label>
+                        <div class="font-monospace bg-dark p-2 rounded border border-secondary">${CTR.formatIP(alert.dst_ip, true)}</div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Detection Timestamp</label>
+                    <div class="font-monospace text-light bg-dark p-2 rounded border border-secondary">${CTR.formatTimestamp(alert.timestamp)}</div>
+                </div>
+
+                ${alert.evidence ? `
+                    <div class="mb-3">
+                        <label class="form-label">Detection Evidence / Rule Context</label>
+                        <pre class="bg-dark p-2 rounded border border-secondary text-info font-monospace fs-xs" style="max-height: 120px; overflow-y: auto;">${typeof alert.evidence === 'object' ? JSON.stringify(alert.evidence, null, 2) : alert.evidence}</pre>
+                    </div>
+                ` : ''}
+
+                <div class="mt-4 pt-3 border-top border-secondary-subtle">
+                    <h6 class="text-light fw-bold mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-link-45deg text-cyan"></i> Associated Ingestion Telemetry (${associatedEvents.length})
+                    </h6>
+                    ${eventsHtml}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Failed to load alert detail:', error);
+            bodyEl.innerHTML = `<div class="p-4 text-center text-danger">Failed to load alert details: ${error.message}</div>`;
+        }
+    };
+
+    // Modal quick status buttons
+    document.getElementById('modalBtnAcknowledge').addEventListener('click', () => {
+        if (currentAlertId) window.CTR_UpdateAlertStatus(currentAlertId, 'acknowledged').then(() => forceCloseAlertModal());
+    });
+    document.getElementById('modalBtnResolve').addEventListener('click', () => {
+        if (currentAlertId) window.CTR_UpdateAlertStatus(currentAlertId, 'resolved').then(() => forceCloseAlertModal());
+    });
+    document.getElementById('modalBtnFalsePositive').addEventListener('click', () => {
+        if (currentAlertId) window.CTR_UpdateAlertStatus(currentAlertId, 'false_positive').then(() => forceCloseAlertModal());
+    });
+
+    // Create Investigation from Alert
+    document.getElementById('modalBtnCreateInvestigation').addEventListener('click', async () => {
+        if (!currentAlertId) return;
+        const datasetId = CTR.getCurrentDatasetId();
+        try {
+            const title = `Investigation from Alert #${currentAlertId}`;
+            const description = `Automated escalation of threat alert #${currentAlertId}. Initial triage initiated by analyst.`;
+            const result = await CTR.apiCall('/api/investigations', {
+                method: 'POST',
+                body: {
+                    title: title,
+                    description: description,
+                    dataset_id: datasetId
+                }
+            });
+
+            CTR.showToast('Investigation created!', 'success');
+            forceCloseAlertModal();
+            if (result.id) {
+                window.location.href = `/investigations/${result.id}`;
+            }
+        } catch (e) {
+            CTR.showToast('Failed to create investigation: ' + e.message, 'error');
+        }
+    });
+
+    // Form submission
+    if (filterForm) {
+        filterForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadAlerts(1);
+        });
+    }
+
+    // Reset button
+    const resetBtn = document.getElementById('resetAlertsFilterBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            filterForm.reset();
+            loadAlerts(1);
+        });
+    }
+
+    document.addEventListener('datasetChanged', () => loadAlerts(1));
+    loadAlerts(1);
+});
+</script>
+{% endblock %}

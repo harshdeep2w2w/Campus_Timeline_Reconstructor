@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}Dataset Repositories{% endblock %}
+{% block page_title %}Dataset Repositories{% endblock %}
+{% block page_subtitle %}Manage network telemetry captures, synthetic scenarios, and raw log files{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <!-- Prominent Sample Data Callout Card -->
+        <div class="soc-card mb-4 border-info">
+            <div class="soc-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon icon-cyan" style="width: 56px; height: 56px;">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    <div>
+                        <h5 class="text-light fw-bold mb-1">Pre-Configured Campus Attack Scenario</h5>
+                        <p class="text-secondary small mb-0">
+                            Includes simulated multi-stage cyber attack telemetry: external port scanning, SSH credential brute-forcing, internal lateral pivoting, and DNS command-and-control exfiltration.
+                        </p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn soc-btn-primary px-4 py-2" id="datasetsLoadSampleBtn">
+                        <i class="bi bi-lightning-charge me-2"></i>Load Sample Attack Dataset
+                    </button>
+                    <a href="/upload" class="btn soc-btn-outline-cyan px-4 py-2">
+                        <i class="bi bi-cloud-upload me-2"></i>Upload Custom Log
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datasets Management Table -->
+        <div class="soc-card" id="datasetsWrapper">
+            <div class="soc-card-header d-flex align-items-center justify-content-between">
+                <h3 class="soc-card-title">
+                    <i class="bi bi-database-check text-cyan"></i> Ingested Datasets
+                </h3>
+                <span class="badge soc-badge-cyan" id="datasetsCountBadge">Loading datasets...</span>
+            </div>
+
+            <!-- Empty State -->
+            <div id="datasetsEmptyState" class="soc-empty-state" style="display: none;">
+                <div class="empty-icon-circle">
+                    <i class="bi bi-database-slash text-cyan"></i>
+                </div>
+                <h5 class="text-light">No Datasets Loaded Yet</h5>
+                <p class="text-secondary small">Upload network logs or generate synthetic attack telemetry to populate your SOC environment.</p>
+                <button class="btn soc-btn-primary mt-3" onclick="CTR.loadSampleData()">
+                    <i class="bi bi-lightning-charge me-2"></i>Load Sample Attack Dataset
+                </button>
+            </div>
+
+            <!-- Table of Datasets -->
+            <div class="soc-table-wrapper border-0" id="datasetsTableWrapper">
+                <table class="soc-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Dataset Name</th>
+                            <th>File Info</th>
+                            <th>Uploaded At</th>
+                            <th class="text-end">Record Count</th>
+                            <th>Status</th>
+                            <th>Errors</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="datasetsTableBody">
+                        <tr><td colspan="8" class="text-center py-4 text-secondary">Loading datasets...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Dataset Records Preview Modal -->
+<div class="modal fade" id="datasetPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content soc-modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2">
+                    <i class="bi bi-table text-cyan"></i>
+                    <span>Dataset Preview: </span>
+                    <span id="previewDatasetTitle" class="text-info fw-bold font-monospace">--</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="soc-table-wrapper border-0">
+                    <table class="soc-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Source Endpoints</th>
+                                <th>Destination Endpoints</th>
+                                <th>Protocol</th>
+                                <th>Category</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewModalTableBody">
+                            <tr><td colspan="6" class="text-center py-4 text-secondary">Loading preview records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tableBody = document.getElementById('datasetsTableBody');
+    const emptyState = document.getElementById('datasetsEmptyState');
+    const tableWrapper = document.getElementById('datasetsTableWrapper');
+    const countBadge = document.getElementById('datasetsCountBadge');
+    const wrapper = document.getElementById('datasetsWrapper');
+    const sampleBtn = document.getElementById('datasetsLoadSampleBtn');
+
+    const previewModalEl = document.getElementById('datasetPreviewModal');
+    const bsPreviewModal = previewModalEl && window.bootstrap ? new bootstrap.Modal(previewModalEl) : null;
+
+    if (sampleBtn) {
+        sampleBtn.addEventListener('click', async () => {
+            await CTR.loadSampleData();
+            loadDatasets();
+        });
+    }
+
+    async function loadDatasets() {
+        CTR.showLoading(wrapper, 'Loading telemetry repositories...');
+        try {
+            const datasets = await CTR.apiCall('/api/datasets');
+            const activeId = CTR.getCurrentDatasetId();
+
+            if (!datasets || datasets.length === 0) {
+                tableBody.innerHTML = '';
+                tableWrapper.style.display = 'none';
+                emptyState.style.display = 'block';
+                countBadge.textContent = '0 Datasets';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            tableWrapper.style.display = 'block';
+            countBadge.textContent = `${datasets.length} Datasets`;
+
+            tableBody.innerHTML = datasets.map(d => {
+                const isActive = activeId === d.id;
+                const status = d.status || 'ready';
+                const errors = d.errors ? (Array.isArray(d.errors) ? d.errors.length : d.errors) : 0;
+
+                return `
+                    <tr class="${isActive ? 'table-active' : ''}">
+                        <td class="font-monospace text-cyan fw-bold">#${d.id}</td>
+                        <td>
+                            <div class="fw-semibold text-light">${d.name || 'Dataset #' + d.id}</div>
+                            ${isActive ? '<span class="badge soc-badge-cyan">Active Console Target</span>' : ''}
+                        </td>
+                        <td>
+                            <div class="small text-secondary">${d.filename || 'Synthetic Stream'}</div>
+                            <span class="badge bg-secondary-subtle text-light fs-xs">${(d.file_type || 'CSV').toUpperCase()}</span>
+                        </td>
+                        <td class="font-monospace fs-xs text-muted">${CTR.formatTimestamp(d.upload_time || d.created_at)}</td>
+                        <td class="text-end font-monospace text-light fw-bold">${Number(d.record_count || 0).toLocaleString()}</td>
+                        <td>${CTR.statusBadge(status)}</td>
+                        <td>
+                            ${errors > 0 ? `<span class="badge bg-danger text-light">${errors} errors</span>` : '<span class="text-muted small">None</span>'}
+                        </td>
+                        <td class="text-end">
+                            ${!isActive ? `
+                                <button class="btn btn-xs soc-btn-outline-cyan me-1" onclick="window.CTR_SelectDataset(${d.id})" title="Set as active dataset">
+                                    <i class="bi bi-check-circle me-1"></i>Select
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-xs btn-outline-info me-1" onclick="window.CTR_PreviewDataset(${d.id}, '${(d.name || '').replace(/'/g, "\\'")}')" title="Preview first 20 records">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-xs btn-outline-danger" onclick="window.CTR_DeleteDataset(${d.id})" title="Delete dataset">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Failed to load datasets:', error);
+            tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Failed to load datasets: ${error.message}</td></tr>`;
+        } finally {
+            CTR.hideLoading(wrapper);
+        }
+    }
+
+    window.CTR_SelectDataset = function(id) {
+        CTR.setCurrentDatasetId(id, true);
+        CTR.showToast(`Active dataset set to #${id}`, 'success');
+        loadDatasets();
+    };
+
+    window.CTR_DeleteDataset = async function(id) {
+        if (!confirm(`Are you sure you want to permanently delete dataset #${id}? All associated events will be erased.`)) return;
+        try {
+            await CTR.apiCall(`/api/datasets/${id}`, { method: 'DELETE' });
+            CTR.showToast(`Dataset #${id} removed`, 'info');
+            if (CTR.getCurrentDatasetId() === id) {
+                CTR.setCurrentDatasetId(null, true);
+            }
+            await CTR.loadDatasets();
+            loadDatasets();
+        } catch (error) {
+            CTR.showToast('Failed to delete dataset: ' + error.message, 'error');
+        }
+    };
+
+    window.CTR_PreviewDataset = async function(id, name) {
+        document.getElementById('previewDatasetTitle').textContent = `${name || 'Dataset #' + id}`;
+        const modalBody = document.getElementById('previewModalTableBody');
+        modalBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-secondary">Loading records preview...</td></tr>';
+        if (bsPreviewModal) bsPreviewModal.show();
+
+        try {
+            const data = await CTR.apiCall(`/api/datasets/${id}/preview?limit=20`);
+            const records = data.records || data || [];
+
+            if (!Array.isArray(records) || records.length === 0) {
+                modalBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-secondary">No records found in this dataset.</td></tr>';
+                return;
+            }
+
+            modalBody.innerHTML = records.map(r => `
+                <tr>
+                    <td class="font-monospace fs-xs">${CTR.formatTimestamp(r.timestamp)}</td>
+                    <td class="font-monospace">${r.src_ip || 'N/A'}${r.src_port ? ':' + r.src_port : ''}</td>
+                    <td class="font-monospace">${r.dst_ip || 'N/A'}${r.dst_port ? ':' + r.dst_port : ''}</td>
+                    <td><span class="badge-protocol">${(r.protocol || 'TCP').toUpperCase()}</span></td>
+                    <td><span class="badge bg-secondary">${r.event_category || 'traffic'}</span></td>
+                    <td>${CTR.severityBadge(r.severity)}</td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            modalBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Failed to preview records: ${error.message}</td></tr>`;
+        }
+    };
+
+    document.addEventListener('datasetChanged', () => loadDatasets());
+    loadDatasets();
+});
+</script>
+{% endblock %}

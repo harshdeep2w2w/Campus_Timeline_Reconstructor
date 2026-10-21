@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}SOC Dashboard{% endblock %}
+{% block page_title %}Security Dashboard{% endblock %}
+{% block page_subtitle %}Real-time campus network attack detection &amp; threat telemetry{% endblock %}
+
+{% block content %}
+<div id="dashboardContainer">
+    <!-- Empty State Container (shown when no dataset is selected or dataset has 0 events) -->
+    <div id="dashboardEmptyState" class="soc-card p-5 text-center my-4" style="display: none;">
+        <div class="empty-icon-circle mx-auto mb-3">
+            <i class="bi bi-shield-slash fs-1 text-cyan"></i>
+        </div>
+        <h4 class="text-light fw-bold">No Telemetry Data Loaded</h4>
+        <p class="text-secondary mb-4 mx-auto" style="max-width: 520px;">
+            The SOC dashboard requires network activity logs. Load the built-in synthetic campus network attack dataset or upload custom CSV, JSON, or Zeek log files.
+        </p>
+        <div class="d-flex justify-content-center gap-3">
+            <button class="btn soc-btn-primary px-4 py-2" id="dashboardLoadSampleBtn">
+                <i class="bi bi-lightning-charge me-2"></i>Load Sample Attack Dataset
+            </button>
+            <a href="/upload" class="btn soc-btn-outline-cyan px-4 py-2">
+                <i class="bi bi-cloud-upload me-2"></i>Upload Log Files
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Dashboard View -->
+    <div id="dashboardActiveView">
+        <!-- Stat Cards Row -->
+        <div class="row g-3 mb-4">
+            <!-- Stat 1: Total Events -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="soc-stat-card stat-cyan">
+                    <div>
+                        <div class="stat-number" id="statTotalEvents">0</div>
+                        <div class="stat-label">Total Network Events</div>
+                    </div>
+                    <div class="stat-icon icon-cyan">
+                        <i class="bi bi-activity"></i>
+                    </div>
+                </div>
+            </div>
+            <!-- Stat 2: Unique Hosts -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="soc-stat-card stat-blue">
+                    <div>
+                        <div class="stat-number" id="statUniqueHosts">0</div>
+                        <div class="stat-label">Monitored Hosts</div>
+                    </div>
+                    <div class="stat-icon icon-blue">
+                        <i class="bi bi-hdd-network"></i>
+                    </div>
+                </div>
+            </div>
+            <!-- Stat 3: Suspicious Events -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="soc-stat-card stat-red">
+                    <div>
+                        <div class="stat-number text-danger" id="statSuspiciousEvents">0</div>
+                        <div class="stat-label">Suspicious Events</div>
+                    </div>
+                    <div class="stat-icon icon-red">
+                        <i class="bi bi-shield-fill-exclamation"></i>
+                    </div>
+                </div>
+            </div>
+            <!-- Stat 4: Active Investigations -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="soc-stat-card stat-purple">
+                    <div>
+                        <div class="stat-number" id="statActiveInvestigations">0</div>
+                        <div class="stat-label">Investigations</div>
+                    </div>
+                    <div class="stat-icon icon-purple">
+                        <i class="bi bi-folder-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Severity Breakdown Bar -->
+        <div class="soc-card mb-4 p-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-shaded text-cyan fs-5"></i>
+                    <span class="small fw-bold text-uppercase text-light">Threat Severity Breakdown:</span>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2" id="severityBreakdownBar">
+                    <span class="badge badge-severity badge-critical px-3 py-2">
+                        <i class="bi bi-fire"></i> Critical: <strong id="sevCriticalCount" class="ms-1 fs-6">0</strong>
+                    </span>
+                    <span class="badge badge-severity badge-high px-3 py-2">
+                        <i class="bi bi-exclamation-triangle-fill"></i> High: <strong id="sevHighCount" class="ms-1 fs-6">0</strong>
+                    </span>
+                    <span class="badge badge-severity badge-medium px-3 py-2">
+                        <i class="bi bi-exclamation-circle"></i> Medium: <strong id="sevMediumCount" class="ms-1 fs-6">0</strong>
+                    </span>
+                    <span class="badge badge-severity badge-low px-3 py-2">
+                        <i class="bi bi-shield-check"></i> Low: <strong id="sevLowCount" class="ms-1 fs-6">0</strong>
+                    </span>
+                    <span class="badge badge-severity badge-informational px-3 py-2">
+                        <i class="bi bi-info-circle"></i> Info: <strong id="sevInfoCount" class="ms-1 fs-6">0</strong>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row with 2 Charts -->
+        <div class="row g-4 mb-4">
+            <!-- Activity Over Time (Line Chart) -->
+            <div class="col-12 col-lg-8">
+                <div class="soc-card h-100">
+                    <div class="soc-card-header">
+                        <h3 class="soc-card-title">
+                            <i class="bi bi-graph-up text-cyan"></i> Network Telemetry Activity Over Time
+                        </h3>
+                        <div class="badge soc-badge-cyan">Timeline Distribution</div>
+                    </div>
+                    <div class="soc-card-body position-relative" style="min-height: 280px;">
+                        <canvas id="activityChart" style="max-height: 280px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol Distribution (Doughnut Chart) -->
+            <div class="col-12 col-lg-4">
+                <div class="soc-card h-100">
+                    <div class="soc-card-header">
+                        <h3 class="soc-card-title">
+                            <i class="bi bi-pie-chart text-cyan"></i> Protocol Breakdown
+                        </h3>
+                        <span class="text-secondary small">L4/L7 Protocols</span>
+                    </div>
+                    <div class="soc-card-body position-relative d-flex align-items-center justify-content-center" style="min-height: 280px;">
+                        <canvas id="protocolChart" style="max-height: 260px; max-width: 260px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row with 2 Panels: Top Hosts & Recent Alerts -->
+        <div class="row g-4">
+            <!-- Top Hosts Panel -->
+            <div class="col-12 col-lg-6">
+                <div class="soc-card h-100">
+                    <div class="soc-card-header">
+                        <h3 class="soc-card-title">
+                            <i class="bi bi-hdd-stack text-cyan"></i> Top Communicating Hosts
+                        </h3>
+                        <ul class="nav nav-pills nav-fill soc-pills-sm" id="topHostsTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="btn btn-xs soc-btn-outline-cyan active px-2" id="tabSourcesBtn" data-bs-toggle="tab" data-bs-target="#tabSources">Sources</button>
+                            </li>
+                            <li class="nav-item ms-1" role="presentation">
+                                <button class="btn btn-xs soc-btn-outline-cyan px-2" id="tabDestBtn" data-bs-toggle="tab" data-bs-target="#tabDest">Destinations</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="soc-card-body p-0">
+                        <div class="tab-content">
+                            <!-- Top Sources Tab -->
+                            <div class="tab-pane fade show active" id="tabSources" role="tabpanel">
+                                <div class="soc-table-wrapper border-0">
+                                    <table class="soc-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th>Source IP</th>
+                                                <th class="text-end">Events</th>
+                                                <th class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="topSourcesTableBody">
+                                            <tr><td colspan="4" class="text-center py-4 text-secondary">Loading hosts...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- Top Destinations Tab -->
+                            <div class="tab-pane fade" id="tabDest" role="tabpanel">
+                                <div class="soc-table-wrapper border-0">
+                                    <table class="soc-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th>Destination IP</th>
+                                                <th class="text-end">Events</th>
+                                                <th class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="topDestTableBody">
+                                            <tr><td colspan="4" class="text-center py-4 text-secondary">Loading hosts...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Alerts Panel -->
+            <div class="col-12 col-lg-6">
+                <div class="soc-card h-100">
+                    <div class="soc-card-header">
+                        <h3 class="soc-card-title">
+                            <i class="bi bi-exclamation-triangle text-cyan"></i> Active Security Alerts
+                        </h3>
+                        <a href="/alerts" class="text-cyan small fw-semibold text-decoration-none">
+                            View All <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                    <div class="soc-card-body p-2" id="recentAlertsContainer" style="max-height: 420px; overflow-y: auto;">
+                        <div class="text-center py-4 text-secondary">Loading alerts...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}
