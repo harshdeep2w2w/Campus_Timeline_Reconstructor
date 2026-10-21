@@ -23,7 +23,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sample dataset button handler
     if (sampleBtn) {
         sampleBtn.addEventListener('click', async () => {
-            await CTR.loadSampleData();
+            const originalHtml = sampleBtn.innerHTML;
+            try {
+                sampleBtn.disabled = true;
+                sampleBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading Sample Telemetry...';
+                await CTR.loadSampleData();
+                CTR.showToast('Sample dataset loaded! Redirecting to Dashboard...', 'success', 'Ready');
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 800);
+            } catch (err) {
+                CTR.showToast('Failed to load sample: ' + (err.message || 'Error'), 'error');
+                sampleBtn.disabled = false;
+                sampleBtn.innerHTML = originalHtml;
+            }
         });
     }
 

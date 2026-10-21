@@ -8,7 +8,7 @@
   ],
   "functions": {
     "api/index.py": {
-      "includeFiles": "templates/**,static/**"
+      "includeFiles": "templates/**,static/**,database/**"
     }
   }
 }

@@ -12,7 +12,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const sampleBtn = document.getElementById('dashboardLoadSampleBtn');
 
     if (sampleBtn) {
-        sampleBtn.addEventListener('click', CTR.loadSampleData);
+        sampleBtn.addEventListener('click', async () => {
+            const originalHtml = sampleBtn.innerHTML;
+            sampleBtn.disabled = true;
+            sampleBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading Telemetry...';
+            try {
+                await CTR.loadSampleData();
+                window.location.reload();
+            } catch (err) {
+                sampleBtn.disabled = false;
+                sampleBtn.innerHTML = originalHtml;
+            }
+        });
     }
 
     /**

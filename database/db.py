@@ -107,6 +107,20 @@ CREATE TABLE IF NOT EXISTS settings (
 """
 
 
+import shutil
+
+def ensure_database_file(db_path: str) -> None:
+    """Ensure database directory exists and copy seed database if missing on Vercel."""
+    os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+    if not os.path.exists(db_path):
+        seed_path = os.path.join(Config.BASE_DIR, 'database', 'seed_campus_timeline.db')
+        if os.path.exists(seed_path):
+            try:
+                shutil.copyfile(seed_path, db_path)
+            except Exception:
+                pass
+
+
 def get_db() -> sqlite3.Connection:
     """
     Get SQLite database connection for the current Flask context or create a standalone one.
@@ -115,7 +129,7 @@ def get_db() -> sqlite3.Connection:
     if has_app_context():
         if '_database' not in g:
             db_path = current_app.config.get('DATABASE', Config.DATABASE)
-            os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+            ensure_database_file(db_path)
             conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
@@ -123,7 +137,7 @@ def get_db() -> sqlite3.Connection:
         return g._database
     else:
         db_path = Config.DATABASE
-        os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+        ensure_database_file(db_path)
         conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
@@ -159,6 +173,16 @@ def init_db() -> None:
             (key, value)
         )
     db.commit()
+
+    # Ensure default dataset exists so timeline and alerts never render empty on cold start
+    try:
+        cur = db.execute("SELECT COUNT(*) as cnt FROM datasets")
+        row = cur.fetchone()
+        if not row or row['cnt'] == 0:
+            from synthetic.generator import load_sample_data
+            load_sample_data()
+    except Exception:
+        pass
 
 
 def init_app(app) -> None:

@@ -25,6 +25,7 @@ Thumbs.db
 instance/
 uploads/
 *.db
+!database/seed_campus_timeline.db
 
 # Distribution
 *.egg-info/
