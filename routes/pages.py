@@ -4,11 +4,6 @@ pages_bp = Blueprint('pages', __name__)
 
 
 @pages_bp.route('/')
-def index():
-    """Redirect home route directly to the interactive dashboard."""
-    return redirect(url_for('pages.dashboard'))
-
-
 @pages_bp.route('/dashboard')
 def dashboard():
     """Render executive overview dashboard."""
